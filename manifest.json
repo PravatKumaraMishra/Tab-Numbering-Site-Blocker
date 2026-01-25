@@ -1,0 +1,14 @@
+{
+  "manifest_version": 3,
+  "name": "Tab Numbering",
+  "version": "1.0",
+    "description": "Adds a number to the beginning of each tab's title for easier navigation.",
+  "permissions": ["tabs", "scripting"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_title": "Tab Numbering Active"
+  }
+}
