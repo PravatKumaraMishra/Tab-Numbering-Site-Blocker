@@ -1,14 +1,22 @@
 {
   "manifest_version": 3,
-  "name": "Tab Numbering",
+  "name": "Tab Numbering + Shorts Blocker",
   "version": "1.0",
-    "description": "Adds a number to the beginning of each tab's title for easier navigation.",
-  "permissions": ["tabs", "scripting"],
+  "description": "Adds numbers to tabs and blocks YouTube Shorts with one click.",
+  "permissions": ["tabs", "scripting", "storage"],
   "background": {
     "service_worker": "background.js"
   },
   "host_permissions": ["<all_urls>"],
+  "content_scripts": [
+    {
+      "js": ["content.js"],
+      "matches": ["*://*.youtube.com/*"],
+      "run_at": "document_start"
+    }
+  ],
   "action": {
-    "default_title": "Tab Numbering Active"
+    "default_popup": "popup.html",
+    "default_title": "Tab Numbering + Shorts Blocker"
   }
 }
