@@ -1,46 +1,141 @@
 // ==========================================
-// YOUTUBE SHORTS BLOCKER - Optimized
+// YOUTUBE SHORTS BLOCKER - Section-Specific Control
 // ==========================================
 
 console.log("🎬 YouTube Shorts Blocker: Content script loaded");
 
 let isBlocking = false;
+let pauseConfig = {
+  home: false,
+  subscriptions: false,
+  search: false,
+};
 let styleElement = null;
 let observer = null;
 
-// Optimized CSS selectors - more specific and efficient
-const blockingCSS = `
-    /* Hide Shorts shelf on homepage */
-    ytd-reel-shelf-renderer,
-    ytd-rich-shelf-renderer[is-shorts] {
-        display: none !important;
-    }
-    
+/**
+ * Detect current YouTube section
+ * @returns {string} Current section: 'home', 'subscriptions', 'search', or 'other'
+ */
+function getCurrentSection() {
+  const path = window.location.pathname;
+  const search = window.location.search;
+
+  if (path === "/" || path === "/feed/explore") return "home";
+  if (path.includes("/feed/subscriptions")) return "subscriptions";
+  if (path.includes("/results") || search.includes("search_query="))
+    return "search";
+  return "other";
+}
+
+/**
+ * Check if blocking should apply in current section
+ * @returns {boolean} True if should block
+ */
+function shouldBlockInCurrentSection() {
+  if (!isBlocking) return false;
+
+  const section = getCurrentSection();
+
+  // Only block if we're on a recognized section (not 'other')
+  if (section === "other") return false;
+
+  // Block if section is NOT paused (paused = false means blocking active)
+  return !pauseConfig[section];
+}
+
+function getBlockingCSS() {
+  if (!shouldBlockInCurrentSection()) {
+    return ""; // Don't block if paused for this section
+  }
+
+  // Section-specific CSS selectors
+  const section = getCurrentSection();
+  let css = "";
+
+  // Always hide Shorts tab in navigation when any blocking is active
+  css += `
     /* Hide Shorts tab in navigation */
     yt-tab-shape[tab-title="Shorts"],
     a[title="Shorts"],
-    ytd-guide-entry-renderer[title="Shorts"] {
+    ytd-guide-entry-renderer[title="Shorts"],
+    ytd-mini-guide-entry-renderer[aria-label*="Shorts"] {
         display: none !important;
     }
-    
+  `;
+
+  // Add section-specific selectors
+  if (section === "home") {
+    css += `
+      /* Hide Shorts shelf on homepage */
+      ytd-reel-shelf-renderer,
+      ytd-rich-shelf-renderer[is-shorts],
+      ytd-rich-section-renderer:has(ytd-reel-shelf-renderer) {
+          display: none !important;
+      }
+    `;
+  }
+
+  if (section === "subscriptions") {
+    css += `
+      /* Hide Shorts in subscriptions feed */
+      ytd-reel-item-renderer,
+      ytd-video-renderer[is-shorts],
+      ytd-grid-video-renderer[is-shorts],
+      ytd-rich-item-renderer:has([overlay-style="SHORTS"]),
+      ytd-rich-shelf-renderer[is-shorts] {
+          display: none !important;
+      }
+    `;
+  }
+
+  if (section === "search") {
+    css += `
+      /* Hide Shorts in search results */
+      ytd-video-renderer[is-shorts],
+      ytd-grid-video-renderer[is-shorts],
+      ytd-reel-shelf-renderer,
+      ytd-reel-item-renderer,
+      ytd-item-section-renderer:has(ytd-reel-shelf-renderer),
+      /* Hide shorts shelf in search */
+      ytd-shelf-renderer:has(#video-title[href*="/shorts/"]) {
+          display: none !important;
+      }
+    `;
+  }
+
+  // Hide individual shorts in any feed (catch-all)
+  css += `
     /* Hide individual shorts in feed */
     ytd-reel-item-renderer,
     ytd-video-renderer[is-shorts],
-    ytd-grid-video-renderer[is-shorts] {
+    ytd-grid-video-renderer[is-shorts],
+    a[href*="/shorts/"],
+    ytd-thumbnail[href*="/shorts/"],
+    ytd-rich-item-renderer:has(a[href*="/shorts/"]) {
         display: none !important;
     }
-`;
+  `;
+
+  return css;
+}
 
 /**
- * Inject CSS to block shorts
+ * Update CSS injection based on current section and pause state
  */
-function injectBlockingCSS() {
-  if (!styleElement) {
-    styleElement = document.createElement("style");
-    styleElement.id = "youtube-shorts-blocker-style";
-    styleElement.textContent = blockingCSS;
-    document.head.appendChild(styleElement);
-    console.log("✅ Blocking CSS injected");
+function updateBlockingCSS() {
+  const css = getBlockingCSS();
+
+  if (css) {
+    if (!styleElement) {
+      styleElement = document.createElement("style");
+      styleElement.id = "youtube-shorts-blocker-style";
+      document.head.appendChild(styleElement);
+    }
+    styleElement.textContent = css;
+    console.log("✅ Blocking CSS updated for section:", getCurrentSection());
+  } else {
+    removeBlockingCSS();
   }
 }
 
@@ -59,7 +154,10 @@ function removeBlockingCSS() {
  * Redirect shorts URLs to regular video format
  */
 function handleShortsRedirect() {
-  if (isBlocking && window.location.pathname.includes("/shorts/")) {
+  if (
+    shouldBlockInCurrentSection() &&
+    window.location.pathname.includes("/shorts/")
+  ) {
     console.log("🔄 Redirecting from Shorts URL");
     const videoId = window.location.pathname
       .split("/shorts/")[1]
@@ -76,7 +174,7 @@ function handleShortsRedirect() {
 function enableBlocking() {
   console.log("🚫 Enabling Shorts blocking");
   isBlocking = true;
-  injectBlockingCSS();
+  updateBlockingCSS();
   handleShortsRedirect();
 }
 
@@ -90,13 +188,37 @@ function disableBlocking() {
 }
 
 /**
+ * Update pause configuration for a specific section
+ * @param {Object} newConfig Updated pause configuration
+ */
+function updatePauseConfig(newConfig) {
+  pauseConfig = { ...pauseConfig, ...newConfig };
+  console.log("⚙️ Pause config updated:", pauseConfig);
+  updateBlockingCSS();
+  handleShortsRedirect();
+}
+
+/**
  * Initialize blocker from storage
  */
 async function initializeBlocker() {
   try {
-    const result = await chrome.storage.local.get("blockShorts");
+    const result = await chrome.storage.local.get([
+      "blockShorts",
+      "shortsPauseConfig",
+    ]);
     const shouldBlock = result.blockShorts || false;
-    console.log("📊 Initial blocking state:", shouldBlock);
+    pauseConfig = result.shortsPauseConfig || {
+      home: false,
+      subscriptions: false,
+      search: false,
+    };
+    console.log(
+      "📊 Initial state - Blocking:",
+      shouldBlock,
+      "Pause config:",
+      pauseConfig,
+    );
 
     if (shouldBlock) {
       enableBlocking();
@@ -119,6 +241,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
       disableBlocking();
     }
     sendResponse({ success: true });
+  } else if (request.action === "updatePauseConfig") {
+    updatePauseConfig(request.config);
+    sendResponse({ success: true });
   }
   return true;
 });
@@ -128,12 +253,22 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
  */
 chrome.storage.onChanged.addListener((changes, namespace) => {
   if (changes.blockShorts) {
-    console.log("💾 Storage changed:", changes.blockShorts.newValue);
+    console.log("💾 Blocking state changed:", changes.blockShorts.newValue);
     if (changes.blockShorts.newValue) {
       enableBlocking();
     } else {
       disableBlocking();
     }
+  }
+  if (changes.shortsPauseConfig) {
+    console.log("💾 Pause config changed:", changes.shortsPauseConfig.newValue);
+    pauseConfig = changes.shortsPauseConfig.newValue || {
+      home: false,
+      subscriptions: false,
+      search: false,
+    };
+    updateBlockingCSS();
+    handleShortsRedirect();
   }
 });
 
@@ -151,6 +286,7 @@ observer = new MutationObserver(() => {
   if (currentUrl !== lastUrl) {
     lastUrl = currentUrl;
     console.log("🔄 Navigation detected:", currentUrl);
+    updateBlockingCSS();
     handleShortsRedirect();
   }
 });

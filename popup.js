@@ -2,85 +2,124 @@
 // DOM ELEMENTS
 // ==========================================
 
-const toggleBtn = document.getElementById("toggleBtn");
-const btnText = document.getElementById("btnText");
 const statusText = document.getElementById("status");
+const pauseHomeBtn = document.getElementById("pauseHomeBtn");
+const pauseSubsBtn = document.getElementById("pauseSubsBtn");
+const pauseSearchBtn = document.getElementById("pauseSearchBtn");
 const siteInput = document.getElementById("siteInput");
 const addSiteBtn = document.getElementById("addSiteBtn");
 const blockedSitesList = document.getElementById("blockedSitesList");
+const pauseSiteBlockerBtn = document.getElementById("pauseSiteBlockerBtn");
+const siteBlockerStatus = document.getElementById("siteBlockerStatus");
 
 console.log("🎨 Popup loaded");
 
 // ==========================================
-// YOUTUBE SHORTS BLOCKER
+// YOUTUBE SHORTS BLOCKER - Section-Specific
 // ==========================================
 
-async function checkBlockingState() {
+/**
+ * Load pause configuration from storage
+ */
+async function loadPauseConfig() {
   try {
-    const result = await chrome.storage.local.get("blockShorts");
-    const isBlocking = result.blockShorts || false;
-    console.log("Current blocking state:", isBlocking);
-    updateShortsUI(isBlocking);
-    return isBlocking;
+    const result = await chrome.storage.local.get("shortsPauseConfig");
+    return (
+      result.shortsPauseConfig || {
+        home: false,
+        subscriptions: false,
+        search: false,
+      }
+    );
   } catch (error) {
-    console.error("Error checking state:", error);
-    statusText.textContent = "Error loading state";
-    return false;
+    console.error("Error loading pause config:", error);
+    return { home: false, subscriptions: false, search: false };
   }
 }
 
-function updateShortsUI(isBlocking) {
-  if (isBlocking) {
-    toggleBtn.classList.add("enabled");
-    toggleBtn.classList.remove("disabled");
-    btnText.textContent = "✓ Shorts Blocked";
-    statusText.textContent = "YouTube Shorts are being blocked";
-  } else {
-    toggleBtn.classList.add("disabled");
-    toggleBtn.classList.remove("enabled");
-    btnText.textContent = "✗ Shorts Allowed";
-    statusText.textContent = "YouTube Shorts are visible";
+/**
+ * Update UI for a sepcific section pause button
+ */
+function updatePauseButtonUI(section, isPaused) {
+  let button;
+  if (section === "home") button = pauseHomeBtn;
+  else if (section === "subscriptions") button = pauseSubsBtn;
+  else if (section === "search") button = pauseSearchBtn;
+
+  if (button) {
+    button.textContent = isPaused ? "▶️" : "⏸️";
+    if (isPaused) {
+      button.classList.add("paused");
+    } else {
+      button.classList.remove("paused");
+    }
   }
 }
 
-async function toggleBlocking() {
+/**
+ * Update all pause buttons based on config
+ */
+async function updateAllPauseButtons() {
+  const config = await loadPauseConfig();
+  updatePauseButtonUI("home", config.home);
+  updatePauseButtonUI("subscriptions", config.subscriptions);
+  updatePauseButtonUI("search", config.search);
+}
+
+/**
+ * Update Shorts UI - simplified for button-only interface
+ */
+function updateShortsUI() {
+  statusText.textContent = "Toggle sections to control Shorts blocking";
+}
+
+/**
+ * Toggle pause for a specific section
+ */
+async function toggleSectionPause(section) {
   try {
-    const currentState = await checkBlockingState();
-    const newState = !currentState;
+    const config = await loadPauseConfig();
+    const newPauseState = !config[section];
 
-    console.log("Toggling from", currentState, "to", newState);
+    console.log(
+      `Toggling ${section} from ${config[section]} to ${newPauseState}`,
+    );
 
-    await chrome.storage.local.set({ blockShorts: newState });
-    updateShortsUI(newState);
+    config[section] = newPauseState;
+    await chrome.storage.local.set({ shortsPauseConfig: config });
 
+    updatePauseButtonUI(section, newPauseState);
+
+    // Send message to content scripts
     const tabs = await chrome.tabs.query({ url: "*://*.youtube.com/*" });
-    console.log("Found YouTube tabs:", tabs.length);
-
     for (const tab of tabs) {
       try {
         await chrome.tabs.sendMessage(tab.id, {
-          action: "toggleShorts",
-          enabled: newState,
+          action: "updatePauseConfig",
+          config: config,
         });
-        console.log("Message sent to tab:", tab.id);
+        console.log("Pause config sent to tab:", tab.id);
       } catch (err) {
         console.log("Could not message tab", tab.id, "- reloading instead");
         await chrome.tabs.reload(tab.id);
       }
     }
 
-    if (tabs.length === 0) {
-      statusText.textContent = newState
-        ? "Enabled! Open YouTube to see it work."
-        : "Disabled!";
-    }
+    const sectionName = section.charAt(0).toUpperCase() + section.slice(1);
+    statusText.textContent = newPauseState
+      ? `${sectionName}: Shorts unblocked`
+      : `${sectionName}: Shorts blocked`;
   } catch (error) {
-    console.error("Error toggling:", error);
+    console.error("Error toggling section pause:", error);
     statusText.textContent = "Error: " + error.message;
   }
 }
-
-toggleBtn.addEventListener("click", toggleBlocking);
+// Event listeners for section buttons
+pauseHomeBtn.addEventListener("click", () => toggleSectionPause("home"));
+pauseSubsBtn.addEventListener("click", () =>
+  toggleSectionPause("subscriptions"),
+);
+pauseSearchBtn.addEventListener("click", () => toggleSectionPause("search"));
 
 // ==========================================
 // CUSTOM SITE BLOCKER
@@ -209,6 +248,7 @@ async function renderBlockedSites() {
   if (blockedSites.length === 0) {
     blockedSitesList.innerHTML =
       '<p class="empty-state">No blocked sites yet</p>';
+    await updateSiteBlockerPauseUI();
     return;
   }
 
@@ -231,6 +271,9 @@ async function renderBlockedSites() {
       removeBlockedSite(domain);
     });
   });
+
+  // Update pause button visibility
+  await updateSiteBlockerPauseUI();
 }
 
 // Event listeners
@@ -242,12 +285,81 @@ siteInput.addEventListener("keypress", (e) => {
 });
 
 // ==========================================
+// SITE BLOCKER PAUSE FUNCTIONALITY
+// ==========================================
+
+/**
+ * Check and update site blocker pause state
+ */
+async function updateSiteBlockerPauseUI() {
+  try {
+    const result = await chrome.storage.local.get("siteBlockerPaused");
+    const isPaused = result.siteBlockerPaused || false;
+    const blockedSites = await getBlockedSites();
+
+    if (blockedSites.length > 0) {
+      pauseSiteBlockerBtn.style.display = "block";
+      if (isPaused) {
+        pauseSiteBlockerBtn.textContent = "▶️ Resume Blocking";
+        pauseSiteBlockerBtn.classList.add("paused");
+        siteBlockerStatus.textContent = "Site blocking is PAUSED";
+        siteBlockerStatus.style.display = "block";
+      } else {
+        pauseSiteBlockerBtn.textContent = "⏸️ Pause Blocking";
+        pauseSiteBlockerBtn.classList.remove("paused");
+        siteBlockerStatus.textContent = "Site blocking is active";
+        siteBlockerStatus.style.display = "block";
+      }
+    } else {
+      pauseSiteBlockerBtn.style.display = "none";
+      siteBlockerStatus.style.display = "none";
+    }
+  } catch (error) {
+    console.error("Error updating site blocker UI:", error);
+  }
+}
+
+/**
+ * Toggle pause state for site blocker
+ */
+async function toggleSiteBlockerPause() {
+  try {
+    const result = await chrome.storage.local.get("siteBlockerPaused");
+    const isPaused = result.siteBlockerPaused || false;
+    const newPauseState = !isPaused;
+
+    console.log(
+      "Toggling site blocker pause from",
+      isPaused,
+      "to",
+      newPauseState,
+    );
+
+    await chrome.storage.local.set({ siteBlockerPaused: newPauseState });
+    await updateSiteBlockerPauseUI();
+  } catch (error) {
+    console.error("Error toggling site blocker pause:", error);
+  }
+}
+
+pauseSiteBlockerBtn.addEventListener("click", toggleSiteBlockerPause);
+
+// ==========================================
 // INITIALIZATION
 // ==========================================
 
 async function initialize() {
-  await checkBlockingState();
+  // Ensure Shorts blocking is enabled by default
+  const result = await chrome.storage.local.get("blockShorts");
+  if (result.blockShorts === undefined) {
+    await chrome.storage.local.set({ blockShorts: true });
+    console.log("✅ Initialized blockShorts to true");
+  }
+
+  updateShortsUI();
+  await updateAllPauseButtons();
   await renderBlockedSites();
+  await updateSiteBlockerPauseUI();
 }
 
 initialize();

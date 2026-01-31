@@ -9,10 +9,39 @@
       <!-- YouTube Shorts Section -->
       <section class="section">
         <h2>YouTube Shorts</h2>
-        <button id="toggleBtn" class="toggle-btn">
-          <span id="btnText">Loading...</span>
-        </button>
-        <p id="status" class="status">Checking status...</p>
+
+        <!-- Section-Specific Controls -->
+        <div class="shorts-controls-grid">
+          <div class="section-control">
+            <button id="pauseHomeBtn" class="section-btn" data-section="home">
+              ⏸️
+            </button>
+            <span class="section-label-bottom">Home</span>
+          </div>
+          <div class="section-control">
+            <button
+              id="pauseSubsBtn"
+              class="section-btn"
+              data-section="subscriptions"
+            >
+              ⏸️
+            </button>
+            <span class="section-label-bottom">Subscriptions</span>
+          </div>
+          <div class="section-control">
+            <button
+              id="pauseSearchBtn"
+              class="section-btn"
+              data-section="search"
+            >
+              ⏸️
+            </button>
+            <span class="section-label-bottom">Search</span>
+          </div>
+        </div>
+        <p id="status" class="status">
+          Click buttons to toggle Shorts blocking
+        </p>
       </section>
 
       <!-- Divider -->
@@ -31,6 +60,18 @@
           <button id="addSiteBtn" class="add-btn">Add</button>
         </div>
         <p class="hint">Enter domain without http:// or www</p>
+
+        <!-- Pause Button and Status -->
+        <button
+          id="pauseSiteBlockerBtn"
+          class="pause-btn"
+          style="display: none; margin-bottom: 12px"
+        >
+          ⏸️ Pause Blocking
+        </button>
+        <p id="siteBlockerStatus" class="status" style="display: none">
+          Site blocking is active
+        </p>
 
         <!-- Blocked Sites List -->
         <div id="blockedSitesList" class="blocked-list">

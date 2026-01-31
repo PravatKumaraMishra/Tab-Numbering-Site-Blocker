@@ -92,9 +92,18 @@ chrome.webNavigation.onBeforeNavigate.addListener(async (details) => {
   }
 
   try {
-    // Get blocked sites from storage
-    const result = await chrome.storage.local.get("blockedSites");
+    // Get blocked sites and pause state from storage
+    const result = await chrome.storage.local.get([
+      "blockedSites",
+      "siteBlockerPaused",
+    ]);
     const blockedSites = result.blockedSites || [];
+    const isPaused = result.siteBlockerPaused || false;
+
+    // Don't block if paused
+    if (isPaused) {
+      return;
+    }
 
     // Check if URL should be blocked
     if (shouldBlockUrl(details.url, blockedSites)) {
@@ -118,9 +127,18 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   }
 
   try {
-    // Get blocked sites from storage
-    const result = await chrome.storage.local.get("blockedSites");
+    // Get blocked sites and pause state from storage
+    const result = await chrome.storage.local.get([
+      "blockedSites",
+      "siteBlockerPaused",
+    ]);
     const blockedSites = result.blockedSites || [];
+    const isPaused = result.siteBlockerPaused || false;
+
+    // Don't block if paused
+    if (isPaused) {
+      return;
+    }
 
     // Check if URL should be blocked
     if (shouldBlockUrl(changeInfo.url, blockedSites)) {
