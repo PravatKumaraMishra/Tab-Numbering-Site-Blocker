@@ -6,11 +6,37 @@
   </head>
   <body>
     <div class="container">
-      <h2>YouTube Shorts Blocker</h2>
-      <button id="toggleBtn" class="toggle-btn">
-        <span id="btnText">Loading...</span>
-      </button>
-      <p id="status" class="status">Checking status...</p>
+      <!-- YouTube Shorts Section -->
+      <section class="section">
+        <h2>YouTube Shorts</h2>
+        <button id="toggleBtn" class="toggle-btn">
+          <span id="btnText">Loading...</span>
+        </button>
+        <p id="status" class="status">Checking status...</p>
+      </section>
+
+      <!-- Divider -->
+      <div class="divider"></div>
+
+      <!-- Site Blocker Section -->
+      <section class="section">
+        <h2>Block Websites</h2>
+        <div class="input-group">
+          <input
+            type="text"
+            id="siteInput"
+            placeholder="e.g., facebook.com"
+            class="site-input"
+          />
+          <button id="addSiteBtn" class="add-btn">Add</button>
+        </div>
+        <p class="hint">Enter domain without http:// or www</p>
+
+        <!-- Blocked Sites List -->
+        <div id="blockedSitesList" class="blocked-list">
+          <p class="empty-state">No blocked sites yet</p>
+        </div>
+      </section>
     </div>
     <script src="popup.js"></script>
   </body>

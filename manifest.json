@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Tab Numbering + Shorts Blocker",
-  "version": "1.0",
-  "description": "Adds numbers to tabs and blocks YouTube Shorts with one click.",
-  "permissions": ["tabs", "scripting", "storage"],
+  "name": "Tab Numbering + Site Blocker",
+  "version": "2.0",
+  "description": "Numbers tabs, blocks YouTube Shorts, and lets you block any website.",
+  "permissions": ["tabs", "scripting", "storage", "webNavigation"],
   "background": {
     "service_worker": "background.js"
   },
@@ -17,6 +17,6 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Tab Numbering + Shorts Blocker"
+    "default_title": "Tab Numbering + Site Blocker"
   }
 }

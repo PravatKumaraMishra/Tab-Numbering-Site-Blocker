@@ -1,10 +1,14 @@
-// YouTube Shorts Blocker Content Script
+// ==========================================
+// YOUTUBE SHORTS BLOCKER - Optimized
+// ==========================================
+
 console.log("🎬 YouTube Shorts Blocker: Content script loaded");
 
 let isBlocking = false;
 let styleElement = null;
+let observer = null;
 
-// CSS to inject for blocking shorts
+// Optimized CSS selectors - more specific and efficient
 const blockingCSS = `
     /* Hide Shorts shelf on homepage */
     ytd-reel-shelf-renderer,
@@ -14,7 +18,8 @@ const blockingCSS = `
     
     /* Hide Shorts tab in navigation */
     yt-tab-shape[tab-title="Shorts"],
-    a[title="Shorts"] {
+    a[title="Shorts"],
+    ytd-guide-entry-renderer[title="Shorts"] {
         display: none !important;
     }
     
@@ -24,19 +29,11 @@ const blockingCSS = `
     ytd-grid-video-renderer[is-shorts] {
         display: none !important;
     }
-    
-    /* Hide shorts section in sidebar */
-    ytd-guide-entry-renderer[title="Shorts"] {
-        display: none !important;
-    }
-    
-    /* Hide shorts in search results */
-    ytd-video-renderer[is-shorts] {
-        display: none !important;
-    }
 `;
 
-// Inject CSS to block shorts
+/**
+ * Inject CSS to block shorts
+ */
 function injectBlockingCSS() {
   if (!styleElement) {
     styleElement = document.createElement("style");
@@ -47,25 +44,35 @@ function injectBlockingCSS() {
   }
 }
 
-// Remove blocking CSS
+/**
+ * Remove blocking CSS
+ */
 function removeBlockingCSS() {
-  if (styleElement && styleElement.parentNode) {
+  if (styleElement?.parentNode) {
     styleElement.parentNode.removeChild(styleElement);
     styleElement = null;
     console.log("❌ Blocking CSS removed");
   }
 }
 
-// Redirect shorts URLs to regular video format
+/**
+ * Redirect shorts URLs to regular video format
+ */
 function handleShortsRedirect() {
   if (isBlocking && window.location.pathname.includes("/shorts/")) {
     console.log("🔄 Redirecting from Shorts URL");
-    const videoId = window.location.pathname.split("/shorts/")[1].split("?")[0];
-    window.location.replace(`https://www.youtube.com/watch?v=${videoId}`);
+    const videoId = window.location.pathname
+      .split("/shorts/")[1]
+      ?.split("?")[0];
+    if (videoId) {
+      window.location.replace(`https://www.youtube.com/watch?v=${videoId}`);
+    }
   }
 }
 
-// Enable blocking
+/**
+ * Enable blocking
+ */
 function enableBlocking() {
   console.log("🚫 Enabling Shorts blocking");
   isBlocking = true;
@@ -73,14 +80,18 @@ function enableBlocking() {
   handleShortsRedirect();
 }
 
-// Disable blocking
+/**
+ * Disable blocking
+ */
 function disableBlocking() {
   console.log("✅ Disabling Shorts blocking");
   isBlocking = false;
   removeBlockingCSS();
 }
 
-// Initialize blocking state from storage
+/**
+ * Initialize blocker from storage
+ */
 async function initializeBlocker() {
   try {
     const result = await chrome.storage.local.get("blockShorts");
@@ -95,7 +106,9 @@ async function initializeBlocker() {
   }
 }
 
-// Listen for messages from popup
+/**
+ * Listen for messages from popup
+ */
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log("📨 Message received:", request);
 
@@ -107,10 +120,12 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
     sendResponse({ success: true });
   }
-  return true; // Keep channel open for async response
+  return true;
 });
 
-// Listen for storage changes (for sync across tabs)
+/**
+ * Listen for storage changes
+ */
 chrome.storage.onChanged.addListener((changes, namespace) => {
   if (changes.blockShorts) {
     console.log("💾 Storage changed:", changes.blockShorts.newValue);
@@ -122,21 +137,44 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
   }
 });
 
-// Handle YouTube SPA navigation
+/**
+ * Handle YouTube SPA navigation - Optimized
+ */
 let lastUrl = location.href;
-new MutationObserver(() => {
+
+if (observer) {
+  observer.disconnect();
+}
+
+observer = new MutationObserver(() => {
   const currentUrl = location.href;
   if (currentUrl !== lastUrl) {
     lastUrl = currentUrl;
     console.log("🔄 Navigation detected:", currentUrl);
     handleShortsRedirect();
   }
-}).observe(document, { subtree: true, childList: true });
+});
 
-// Initialize immediately
+// Observe only necessary parts of the DOM
+observer.observe(document, {
+  subtree: true,
+  childList: true,
+});
+
+/**
+ * Cleanup on page unload to prevent memory leaks
+ */
+window.addEventListener("beforeunload", () => {
+  if (observer) {
+    observer.disconnect();
+    observer = null;
+  }
+});
+
+// Initialize
 initializeBlocker();
 
-// Also check on readyState change
+// Also check on DOMContentLoaded if still loading
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", initializeBlocker);
 }

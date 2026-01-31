@@ -1,0 +1,158 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Site Blocked</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+      }
+
+      .container {
+        text-align: center;
+        padding: 40px;
+        background: rgba(255, 255, 255, 0.1);
+        backdrop-filter: blur(10px);
+        border-radius: 24px;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+        max-width: 500px;
+        margin: 20px;
+      }
+
+      .icon {
+        font-size: 80px;
+        margin-bottom: 20px;
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.1);
+        }
+      }
+
+      h1 {
+        font-size: 32px;
+        margin-bottom: 16px;
+        font-weight: 700;
+      }
+
+      .blocked-url {
+        background: rgba(255, 255, 255, 0.2);
+        padding: 12px 20px;
+        border-radius: 12px;
+        margin: 20px 0;
+        font-family: monospace;
+        word-break: break-all;
+        font-size: 14px;
+      }
+
+      .message {
+        font-size: 16px;
+        margin-bottom: 30px;
+        opacity: 0.9;
+        line-height: 1.5;
+      }
+
+      .button {
+        background: white;
+        color: #667eea;
+        border: none;
+        padding: 14px 32px;
+        font-size: 16px;
+        font-weight: 600;
+        border-radius: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin: 0 8px;
+      }
+
+      .button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(255, 255, 255, 0.3);
+      }
+
+      .button.secondary {
+        background: transparent;
+        border: 2px solid white;
+        color: white;
+      }
+
+      .button.secondary:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="icon">🚫</div>
+      <h1>Site Blocked</h1>
+      <div class="blocked-url" id="blockedUrl">Loading...</div>
+      <p class="message">
+        This site has been blocked by your extension settings.
+      </p>
+      <button class="button" id="unblockBtn">Unblock This Site</button>
+      <button class="button secondary" id="goBackBtn">Go Back</button>
+    </div>
+
+    <script>
+      // Get blocked URL from query parameter
+      const urlParams = new URLSearchParams(window.location.search);
+      const blockedUrl = urlParams.get("url") || "Unknown";
+      document.getElementById("blockedUrl").textContent = blockedUrl;
+
+      // Unblock button handler
+      document
+        .getElementById("unblockBtn")
+        .addEventListener("click", async () => {
+          try {
+            // Get current blocked sites
+            const result = await chrome.storage.local.get("blockedSites");
+            const blockedSites = result.blockedSites || [];
+
+            // Extract domain from blocked URL
+            const domain = new URL(blockedUrl).hostname.replace(/^www\./, "");
+
+            // Remove from blocked list
+            const updatedSites = blockedSites.filter((site) => site !== domain);
+            await chrome.storage.local.set({ blockedSites: updatedSites });
+
+            // Redirect to the unblocked site
+            window.location.href = blockedUrl;
+          } catch (error) {
+            console.error("Error unblocking site:", error);
+            alert(
+              "Error unblocking site. Please try from the extension popup.",
+            );
+          }
+        });
+
+      // Go back button handler
+      document.getElementById("goBackBtn").addEventListener("click", () => {
+        if (window.history.length > 1) {
+          window.history.back();
+        } else {
+          window.close();
+        }
+      });
+    </script>
+  </body>
+</html>
