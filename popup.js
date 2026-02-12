@@ -6,6 +6,10 @@ const statusText = document.getElementById("status");
 const pauseHomeBtn = document.getElementById("pauseHomeBtn");
 const pauseSubsBtn = document.getElementById("pauseSubsBtn");
 const pauseSearchBtn = document.getElementById("pauseSearchBtn");
+const toggleRecommendationsBtn = document.getElementById(
+  "toggleRecommendationsBtn",
+);
+const recommendationStatus = document.getElementById("recommendationStatus");
 const siteInput = document.getElementById("siteInput");
 const addSiteBtn = document.getElementById("addSiteBtn");
 const blockedSitesList = document.getElementById("blockedSitesList");
@@ -120,6 +124,73 @@ pauseSubsBtn.addEventListener("click", () =>
   toggleSectionPause("subscriptions"),
 );
 pauseSearchBtn.addEventListener("click", () => toggleSectionPause("search"));
+
+// ==========================================
+// YOUTUBE RECOMMENDATION HIDING
+// ==========================================
+
+/**
+ * Load recommendation hiding state from storage
+ */
+async function loadRecommendationState() {
+  try {
+    const result = await chrome.storage.local.get("hideRecommendations");
+    return result.hideRecommendations || false;
+  } catch (error) {
+    console.error("Error loading recommendation state:", error);
+    return false;
+  }
+}
+
+/**
+ * Update recommendation UI based on state
+ */
+function updateRecommendationUI(isHidden) {
+  if (isHidden) {
+    toggleRecommendationsBtn.textContent = "▶️ Show Recommendations";
+    toggleRecommendationsBtn.classList.add("active");
+    recommendationStatus.textContent = "Recommendations are hidden";
+  } else {
+    toggleRecommendationsBtn.textContent = "🚫 Hide Recommendations";
+    toggleRecommendationsBtn.classList.remove("active");
+    recommendationStatus.textContent = "Recommendations are visible";
+  }
+}
+
+/**
+ * Toggle recommendation hiding
+ */
+async function toggleRecommendations() {
+  try {
+    const currentState = await loadRecommendationState();
+    const newState = !currentState;
+
+    console.log(`Toggling recommendations from ${currentState} to ${newState}`);
+
+    await chrome.storage.local.set({ hideRecommendations: newState });
+    updateRecommendationUI(newState);
+
+    // Send message to YouTube tabs
+    const tabs = await chrome.tabs.query({ url: "*://*.youtube.com/*" });
+    for (const tab of tabs) {
+      try {
+        await chrome.tabs.sendMessage(tab.id, {
+          action: "toggleRecommendations",
+          enabled: newState,
+        });
+        console.log("Recommendation toggle sent to tab:", tab.id);
+      } catch (err) {
+        console.log("Could not message tab", tab.id, "- will apply on reload");
+      }
+    }
+  } catch (error) {
+    console.error("Error toggling recommendations:", error);
+    recommendationStatus.textContent = "Error: " + error.message;
+  }
+}
+
+// Event listener for recommendation toggle
+toggleRecommendationsBtn.addEventListener("click", toggleRecommendations);
 
 // ==========================================
 // CUSTOM SITE BLOCKER
@@ -360,6 +431,10 @@ async function initialize() {
   await updateAllPauseButtons();
   await renderBlockedSites();
   await updateSiteBlockerPauseUI();
+
+  // Initialize recommendation hiding UI
+  const hideRecommendations = await loadRecommendationState();
+  updateRecommendationUI(hideRecommendations);
 }
 
 initialize();

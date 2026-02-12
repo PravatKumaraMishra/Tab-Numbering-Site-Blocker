@@ -20,6 +20,14 @@ A powerful Chrome/Brave/Edge browser extension that adds automatic tab numbering
 - **CSS Injection**: Uses optimized CSS selectors for efficient blocking
 - **SPA Support**: Handles YouTube's single-page application navigation
 
+### 🎯 YouTube Recommendation Hiding
+
+- **Hide Video Sidebar**: Removes video recommendations that appear on the right side while watching videos
+- **Full-Width Player**: Automatically expands the video player to use the full width
+- **Toggle Control**: Easy on/off switch via popup interface
+- **Persistent State**: Your preference is saved and applied automatically
+- **Instant Application**: Works immediately on video watch pages
+
 ### 🌐 Custom Website Blocker
 
 - **Block Any Site**: Add any website domain to your block list
@@ -100,6 +108,25 @@ Click the extension icon in your browser toolbar to open the control panel.
 - When you try to visit a blocked site, the tab will automatically close
 - Blocking works for navigation and URL updates
 - Domain matching includes subdomains (e.g., blocking `youtube.com` also blocks `m.youtube.com`)
+
+### YouTube Recommendation Hiding
+
+1. Open the extension popup
+2. In the "YouTube Recommendations" section, click the toggle button
+3. When recommendations are hidden:
+   - Button shows "▶️ Show Recommendations"
+   - The video sidebar will be hidden on all video watch pages
+   - Video player expands to use the full width
+4. When recommendations are visible:
+   - Button shows "🚫 Hide Recommendations"
+   - Normal YouTube layout is restored
+5. Your preference persists across browser sessions
+
+**What Gets Hidden:**
+
+- Recommendation sidebar on video watch pages
+- Related videos section
+- Up next suggestions
 
 ### Tab Numbering
 
@@ -192,6 +219,13 @@ This extension requires the following permissions:
 - Check that you're on the correct section (Home/Subscriptions/Search)
 - Verify the button shows the correct state (⏸️ or ▶️)
 
+### Recommendations not hiding
+
+- Make sure you're on a YouTube video watch page (not homepage)
+- Toggle the feature off and on again
+- Refresh the YouTube page after enabling
+- Check that the extension has proper permissions
+
 ## 📝 Development
 
 ### Making Changes
@@ -260,6 +294,6 @@ Potential future enhancements:
 
 ---
 
-**Version**: 2.2  
+**Version**: 2.3  
 **Manifest Version**: 3  
 **Compatible Browsers**: Chrome, Brave, Edge, and other Chromium-based browsers

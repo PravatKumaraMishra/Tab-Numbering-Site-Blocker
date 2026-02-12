@@ -10,7 +10,9 @@ let pauseConfig = {
   subscriptions: false,
   search: false,
 };
+let hideRecommendations = false;
 let styleElement = null;
+let recommendationStyleElement = null;
 let observer = null;
 
 /**
@@ -150,6 +152,33 @@ function removeBlockingCSS() {
   }
 }
 
+// ==========================================
+// YOUTUBE RECOMMENDATION HIDING
+// ==========================================
+
+/**
+ * Update recommendation hiding CSS based on current state
+ */
+function updateRecommendationCSS() {
+  if (hideRecommendations) {
+    if (!recommendationStyleElement) {
+      recommendationStyleElement = document.createElement("style");
+      recommendationStyleElement.id = "youtube-recommendation-hider-style";
+      document.head.appendChild(recommendationStyleElement);
+    }
+    recommendationStyleElement.textContent = `
+      #secondary.style-scope.ytd-watch-flexy { display: none !important; }
+    `;
+    console.log("🎯 Recommendation hiding enabled");
+  } else if (recommendationStyleElement?.parentNode) {
+    recommendationStyleElement.parentNode.removeChild(
+      recommendationStyleElement,
+    );
+    recommendationStyleElement = null;
+    console.log("✅ Recommendation hiding disabled");
+  }
+}
+
 /**
  * Redirect shorts URLs to regular video format
  */
@@ -206,6 +235,7 @@ async function initializeBlocker() {
     const result = await chrome.storage.local.get([
       "blockShorts",
       "shortsPauseConfig",
+      "hideRecommendations",
     ]);
     const shouldBlock = result.blockShorts || false;
     pauseConfig = result.shortsPauseConfig || {
@@ -213,16 +243,18 @@ async function initializeBlocker() {
       subscriptions: false,
       search: false,
     };
+    hideRecommendations = result.hideRecommendations || false;
     console.log(
       "📊 Initial state - Blocking:",
       shouldBlock,
       "Pause config:",
       pauseConfig,
+      "Hide recommendations:",
+      hideRecommendations,
     );
 
-    if (shouldBlock) {
-      enableBlocking();
-    }
+    if (shouldBlock) enableBlocking();
+    if (hideRecommendations) updateRecommendationCSS();
   } catch (error) {
     console.error("❌ Error initializing blocker:", error);
   }
@@ -243,6 +275,10 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     sendResponse({ success: true });
   } else if (request.action === "updatePauseConfig") {
     updatePauseConfig(request.config);
+    sendResponse({ success: true });
+  } else if (request.action === "toggleRecommendations") {
+    hideRecommendations = request.enabled;
+    updateRecommendationCSS();
     sendResponse({ success: true });
   }
   return true;
@@ -269,6 +305,14 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
     };
     updateBlockingCSS();
     handleShortsRedirect();
+  }
+  if (changes.hideRecommendations) {
+    console.log(
+      "💾 Hide recommendations changed:",
+      changes.hideRecommendations.newValue,
+    );
+    hideRecommendations = changes.hideRecommendations.newValue;
+    updateRecommendationCSS();
   }
 });
 
@@ -304,6 +348,12 @@ window.addEventListener("beforeunload", () => {
   if (observer) {
     observer.disconnect();
     observer = null;
+  }
+  if (recommendationStyleElement?.parentNode) {
+    recommendationStyleElement.parentNode.removeChild(
+      recommendationStyleElement,
+    );
+    recommendationStyleElement = null;
   }
 });
 
