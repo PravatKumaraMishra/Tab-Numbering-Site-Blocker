@@ -167,7 +167,18 @@ function updateRecommendationCSS() {
       document.head.appendChild(recommendationStyleElement);
     }
     recommendationStyleElement.textContent = `
+      /* Hide recommendations on watch page */
       #secondary.style-scope.ytd-watch-flexy { display: none !important; }
+      ytd-watch-next-secondary-results-renderer { display: none !important; }
+      
+      /* Hide end of video recommendations */
+      .ytp-endscreen-content { display: none !important; }
+      
+      /* Hide Home Page Content */
+      ytd-browse[page-subtype="home"] #primary { display: none !important; }
+      
+      /* Hide Subscriptions Page Content */
+      ytd-browse[page-subtype="subscriptions"] #primary { display: none !important; }
     `;
     console.log("🎯 Recommendation hiding enabled");
   } else if (recommendationStyleElement?.parentNode) {
@@ -176,6 +187,18 @@ function updateRecommendationCSS() {
     );
     recommendationStyleElement = null;
     console.log("✅ Recommendation hiding disabled");
+  }
+}
+
+/**
+ * Redirect home page to Watch Later if recommendations are hidden
+ */
+function handleRecommendationRedirect() {
+  if (hideRecommendations && window.location.pathname === "/") {
+    console.log("🔄 Redirecting from Home to Watch Later");
+    window.location.replace(
+      "https://youtube.com/playlist?list=PLx5OhTygUYQ5u2JtnaT9UFr8dey-9_JT2&si=mJyleOog4eix9-Ik",
+    );
   }
 }
 
@@ -254,7 +277,10 @@ async function initializeBlocker() {
     );
 
     if (shouldBlock) enableBlocking();
-    if (hideRecommendations) updateRecommendationCSS();
+    if (hideRecommendations) {
+      updateRecommendationCSS();
+      handleRecommendationRedirect();
+    }
   } catch (error) {
     console.error("❌ Error initializing blocker:", error);
   }
@@ -279,6 +305,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   } else if (request.action === "toggleRecommendations") {
     hideRecommendations = request.enabled;
     updateRecommendationCSS();
+    handleRecommendationRedirect();
     sendResponse({ success: true });
   }
   return true;
@@ -313,6 +340,7 @@ chrome.storage.onChanged.addListener((changes, namespace) => {
     );
     hideRecommendations = changes.hideRecommendations.newValue;
     updateRecommendationCSS();
+    handleRecommendationRedirect();
   }
 });
 
@@ -332,6 +360,7 @@ observer = new MutationObserver(() => {
     console.log("🔄 Navigation detected:", currentUrl);
     updateBlockingCSS();
     handleShortsRedirect();
+    handleRecommendationRedirect();
   }
 });
 
